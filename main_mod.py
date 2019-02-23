@@ -89,14 +89,14 @@ def main(context):
     ema_validation_log = context.create_train_log("ema_validation")
 
     if args.parameters is not None:
-        parameters = subprocess.Popen("python %s" %args.parameters, shell=True, stdout=subprocess.PIPE).communicate()[0].decode("utf-8")
+        parameters = subprocess.Popen("python %s %s" %(args.parameters, args.flag), shell=True, stdout=subprocess.PIPE).communicate()[0].decode("utf-8")
         parameters = parameters.replace(" --", "\n--")
         LOG.info('parameters provided: {0}\n'.format(parameters))
         if args.evaluate is not False: print('\nparameters provided: %s\n' %parameters)
 
     ############ Load dataset config (data_path, transform...)
     dataset_config = datasets.__dict__[args.dataset]()
-    print('dataset_config', dataset_config)
+    #print('dataset_config', dataset_config)
 
 
     #########################################################################
@@ -166,8 +166,10 @@ def main(context):
         print('Evaluation {}.ckpt'.format(args.ckpt))
         eval_loader = eval_create_data_loaders(**dataset_config, args=args)
 
+        start_time = time.time()
         LOG.info("Evaluating the primary model:")
         _, auc, target, pred = validate(eval_loader, model, validation_log, global_step, args.start_epoch, model_flag='Primary Model', save_pred=True)
+        LOG.info("--- validation in %s seconds ---" % (time.time() - start_time))
 
         LOG.info("Evaluating the EMA model:")
         _, ema_auc, _, ema_pred  = validate(eval_loader, ema_model, ema_validation_log, global_step, args.start_epoch, model_flag='EMA Model', save_pred=True)
@@ -176,6 +178,9 @@ def main(context):
         result_file = os.path.join(test_pred_path, 'test_{}.npz'.format(exp))
         print('Saving testing predction to: {}'.format(result_file))
         np.savez(result_file, target=target, pred=pred, ema_pred=ema_pred, auc=auc, ema_auc=ema_auc)
+
+        command = "python /home/mihan/projects/ivc_nocrop/src/pred_review.py %s" %result_file
+        os.system(command)
 
         return 
 
@@ -280,8 +285,7 @@ def create_data_loaders(train_transformation,
             batch_sampler = data.TwoStreamBatchSampler(unlabeled_indices=unlabeled_idxs,
                                                         labeled_indices=labeled_idxs,
                                                         batch_size=args.batch_size,
-                                                        labeled_batch_size=args.labeled_batch_size
-                                                        )
+                                                        labeled_batch_size=args.labeled_batch_size                                                           )
             train_loader = torch.utils.data.DataLoader(train_dataset,
                                                        batch_sampler=batch_sampler,
                                                        num_workers=args.workers,
@@ -300,6 +304,7 @@ def create_data_loaders(train_transformation,
 
     args.class_to_idx = train_dataset.class_to_idx
     return train_loader, val_loader
+
 
 
 ############ Create data loader for evaluation
@@ -329,14 +334,14 @@ def update_ema_variables(model, ema_model, alpha, global_step):
     ### Use the true average until the exponential average is more correct
     alpha = min(1 - 1 / (global_step + 1), alpha)
     ### mul_() add_() are in-place compuation, change the ema_param
-    ### mul() add() are not in-place compuation, not change the ema_param but return a new results
+    ### mul() add() are not in-place compuation, not change the ema_param but return a new results      
     for ema_param, param in zip(ema_model.parameters(), model.parameters()):
-        ema_param.data.mul_(alpha).add_(1 - alpha, param.data)          
+        ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
         ### mul_() add_() are in-place compuation, change the ema_param
 
 def adjust_learning_rate(optimizer, epoch, step_in_epoch, total_steps_in_epochi):
     """Sets the learning rate to the initial LR decayed by 10 every 15 epochs"""
-    lr = args.lr * (0.25 ** (epoch // args.lr_decay))
+    lr = args.lr * (0.1 ** (epoch // args.lr_decay))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -347,20 +352,17 @@ def get_current_consistency_weight(epoch):
 
 
 
-#########################################################################
-############# Train your model ##########################################
-#########################################################################
 
-#########################################################################
-############# Train your model ##########################################
-#########################################################################
+
+
+
+
+
 def train(train_loader, model, ema_model, optimizer, epoch, log):
-#def train(train_loader, epoch, **kwargs):
     global global_step
 
-
     class_criterion = nn.MultiLabelSoftMarginLoss().cuda() #Multi-LAbel Classification
-    # class_criterion = nn.CrossEntropyLoss(size_average=False, ignore_index=NO_LABEL).cuda() #Single-Label
+    # class_criterion = nn.CrossEntropyLoss(size_average=False, ignore_index=NO_LABEL).cuda() #Single-Label Classification
 
     ############ Consistency loss for both labeled and unlabeled samples
     if args.consistency:
@@ -376,13 +378,12 @@ def train(train_loader, model, ema_model, optimizer, epoch, log):
     residual_logit_criterion = losses.symmetric_mse_loss
     meters = AverageMeterSet()
 
-
-
     ### switch to train mode
     model.train()
     ema_model.train()
 
     end = time.time()
+
     for i, ((input, ema_input), target) in enumerate(train_loader):
         ### target to onehot for model: nn.MultiLabelSoftMarginLoss
         one_hot = torch.FloatTensor(target.size(0), args.num_classes).zero_()
@@ -553,22 +554,22 @@ def validate(eval_loader, model, log, global_step, epoch, model_flag, save_pred=
     pred_array = pred_total.cpu().numpy()
     #print('predictions', pred_array)
     pred_array = pred_array.argmax(axis=1)
-    print('predictions\t', pred_array)
+#    print('predictions\t', pred_array)
     labels = np.array(range(0,args.num_classes))
     pred_array = LabelBinarizer().fit(labels).transform(pred_array)
     #print('predictions transformed', pred_array)
     target_array = target_total.cpu().numpy()
 
     #print('predictions', pred_array)
-    print('answers\t\t', target_array.argmax(axis=1))
+#    print('answers\t\t', target_array.argmax(axis=1))
 
     # auc_list = roc_auc_score(y_true=target_array, y_score=pred_array, average=None)
     auc_list = accuracy_score(y_true=target_array, y_pred=pred_array) #calculated accuracy for multi-class
     f1_weighted = f1_score(y_true=target_array, y_pred=pred_array, average='weighted') #calculated accuracy for multi-class with class imbalance
     f1_list = f1_score(y_true=target_array, y_pred=pred_array, average=None) #calculated accuracy for multi-class with class imbalance
     print(f1_list)
-    print('f1 weighted: ', f1_weighted)
-    print('accuracy', auc_list)
+#    print('f1 weighted: ', f1_weighted)
+#    print('accuracy', auc_list)
     # for score in auc_list: print("%.4f" %(score))
 
     #LOG.info(
@@ -595,6 +596,7 @@ def validate(eval_loader, model, log, global_step, epoch, model_flag, save_pred=
 
     # LOG.info(' * AUC {auc.avg:.4f}'.format(auc=meters['auc']))
     LOG.info(' * Acc {auc.avg:.4f}'.format(auc=meters['auc']))
+    LOG.info(' * Weighted F1 {}'.format(f1_weighted))
     log.record(epoch, {'step': global_step})
 #    log.record(epoch, {
 #        'step': global_step,

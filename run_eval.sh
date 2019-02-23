@@ -5,20 +5,20 @@
 
 script="parameters_eval.py"
 args="$(python3.6 $script)"
-CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args
+CUDA_VISIBLE_DEVICES="3" python3.6 main_mod.py --parameters $script $args
 
 script="parameters_eval_groupedB.py"
 args="$(python3.6 $script)"
-CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args
+#CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args
 
 script="parameters_eval_groupedBC.py"
 args="$(python3.6 $script)"
-CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args
+#CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args
 
 script="parameters_eval_groupedBG.py"
 args="$(python3.6 $script)"
-CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args
+#CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args
 
 script="parameters_eval_groupedAll.py"
 args="$(python3.6 $script)"
-CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args
+#CUDA_VISIBLE_DEVICES="0,1" python3.6 main_mod.py --parameters $script $args

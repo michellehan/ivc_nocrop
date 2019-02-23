@@ -24,9 +24,9 @@ parameters = {
 	"batch-size"        : 32,
 	"labeled-batch-size": 32,
 	"start-epoch"	    : 0,
-	"epochs" 	    : 100,
-	"evaluation-epochs" : 5,			# how often do you check in during training
-	"checkpoint-epochs" : 5,			# how often do save a checkpoint during training
+	"epochs" 	    : 30,
+	"evaluation-epochs" : 2,			# how often do you check in during training
+	"checkpoint-epochs" : 2,			# how often do save a checkpoint during training
 
 	"num-classes"       : 14,
 	"lr" 		    : 0.1,

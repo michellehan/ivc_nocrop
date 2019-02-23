@@ -26,6 +26,9 @@ def unpack(data_dir):
 
     corrects = [0] * len(totals)
     corrects_ema = [0] * len(totals)
+    printwrite(outfile, '* = incorrect prediction by regular model')
+    printwrite(outfile, '** = incorrect prediction by EMA model')
+    printwrite(outfile, '*** = incorrect prediction by both models')
     for i in range(targets.shape[0]):    
         t = targets[i].argmax(axis=0)
         p = pred[i].argmax(axis=0)
@@ -34,10 +37,16 @@ def unpack(data_dir):
         if int(t==p) == 1: corrects[t] += 1
         if int(t==pe) == 1: corrects_ema[t] +=1
 
-        if int(t==p) * int(t==pe) == 1:
+        if t==p and t==pe:
             printwrite(outfile, '[%s]\ttarget: %s \tpred: %s \tpred_ema: %s' %(i, t, p, pe))
-        else:
-            printwrite(outfile, '[%s]\ttarget: %s \tpred: %s \tpred_ema: %s ***' %(i, t, p, pe))
+        elif not t==p:
+            if t==pe: 
+                printwrite(outfile, '[%s]\ttarget: %s \tpred: %s \tpred_ema: %s *' %(i, t, p, pe))
+            if not t==pe:
+                printwrite(outfile, '[%s]\ttarget: %s \tpred: %s \tpred_ema: %s ***' %(i, t, p, pe))
+        elif not t==pe: 
+            printwrite(outfile, '[%s]\ttarget: %s \tpred: %s \tpred_ema: %s **' %(i, t, p, pe))
+
 
     f1 = f1_score(y_true=targets, y_pred=pred, average='weighted') * 100
     f1_list = list(f1_score(y_true=targets, y_pred=pred, average=None))
@@ -57,7 +66,7 @@ def unpack(data_dir):
     #print('\nAcc: %s \t Acc EMA: %s' %(data['auc'], data['ema_auc']))
     
 
-#data_dir = "/home/mihan/ivc_kfold/test_pred/full_cls14/test_full_resnet50_b64_label64_primary.npz"
+#data_dir = "/home/mihan/projects/ivc_nocrop/test_pred/full_cls14/test_full_resnet50_b32_label32_primary.npz"
 unpack(data_dir)
 
 #data_dir = "/home/mihan/ivc_kfold/test_pred/full_cls11/test_full_resnet50_b64_label64_primary.npz"
